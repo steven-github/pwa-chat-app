@@ -130,12 +130,12 @@ pwa-chat-app/
 - [x] Responsive chat UI with auto-scroll
 - [x] Error handling and user feedback
 
-### Phase 3 📍 In Progress
-- [ ] Geolocation API integration
-- [ ] Nearby rooms discovery algorithm
-- [ ] Location-based room filtering
-- [ ] User location privacy controls
-- [ ] Map view of nearby chat rooms
+### Phase 3 ✅ Complete
+- [x] Geolocation API integration - Get user location with browser geolocation API
+- [x] Nearby rooms discovery algorithm - Haversine formula calculates distances
+- [x] Location-based room filtering - Toggle "All Rooms" vs "📍 Nearby" with distance display
+- [x] User location privacy controls - 3-tier privacy settings (private/nearby-only/public)
+- [x] Map view of nearby chat rooms - Canvas-based interactive map with room markers
 
 ### Phase 4 💳 Planned
 - [ ] Stripe subscription integration
@@ -150,6 +150,149 @@ pwa-chat-app/
 - [ ] Offline message queuing
 - [ ] Image/video compression
 - [ ] Mobile testing & refinement
+
+## 🌍 Phase 3: Geolocation & Location Discovery
+
+### Features Implemented
+
+#### 1. **Location-Based Room Filtering** 📍
+- Toggle between "All Rooms" and "Nearby Rooms" (10 km radius)
+- See distance to each room: "2.4 km away", "450 m away"
+- Rooms automatically sorted by proximity
+- Works without requiring user location (graceful fallback)
+
+#### 2. **User Privacy Controls** 🔒
+Access via app settings. Three privacy levels:
+- **🔒 Private**: Location never shared, won't appear in searches
+- **📍 Nearby Only** (default): Shared for discovery only
+- **🌍 Public**: Visible to room members and searches
+
+Users can toggle:
+- Location sharing for discovery
+- Location visibility to room members
+
+#### 3. **Map View** 🗺️
+Interactive map showing:
+- Your location (center, blue marker)
+- All nearby rooms as numbered markers
+- Room count and distance in legend
+- Click rooms to join directly
+- Responsive canvas rendering (works on mobile)
+
+#### 4. **Geolocation Service** 📡
+New service (`locationService.ts`) with utilities:
+- `getUserLocation()` - Browser geolocation with timeout
+- `getNearbyRooms(lat, lon, radius)` - Haversine distance calculation
+- `updateLocationPreferences(userId, prefs)` - Privacy settings
+- `calculateDistance()` - Great-circle distance formula
+- `formatDistance()` - Human-readable distance (km/meters)
+
+### How It Works
+
+**On First Load:**
+1. App requests browser geolocation permission
+2. If granted, "📍 Nearby" filter button appears
+3. User can click to view nearby rooms with distances
+
+**Privacy Flow:**
+1. User enables location sharing (default: on)
+2. Sets privacy level (default: nearby-only)
+3. Location never leaves browser unless finding nearby rooms
+4. Server only receives distance calculation requests
+
+**Distance Calculation:**
+```
+Uses Haversine formula (accurate ±0.5%)
+Earth radius: 6,371 km
+Works with any two coordinates (lat, lon)
+```
+
+### Database Schema (Phase 3)
+
+**Enhanced Rooms Collection:**
+```javascript
+{
+  name: "Coffee Shop Chat",
+  latitude: 40.7128,      // Room location
+  longitude: -74.0060,
+  radius: 10,             // Search radius in km
+  ...otherFields
+}
+```
+
+**User Privacy Preferences:**
+```javascript
+// In users/{userId} document
+{
+  locationPrivacy: 'nearby-only',           // private|nearby-only|public
+  shareLocationForDiscovery: true,          // Enable location for searching
+  locationVisibleToRoomMembers: false,      // Show location in rooms
+  ...otherUserFields
+}
+```
+
+### Components Added
+
+1. **RoomList.tsx** (Updated)
+   - Filter toggle buttons (All / Nearby)
+   - Distance badges on rooms
+   - Location loading state
+   - Graceful fallback when location unavailable
+
+2. **NearbyRoomsMap.tsx** (New)
+   - Canvas-based interactive map
+   - Room markers with numbers
+   - User location marker
+   - Click-to-join functionality
+   - Responsive legend sidebar
+
+3. **PrivacySettings.tsx** (New)
+   - 3-level privacy radio buttons
+   - Toggle switches for sharing preferences
+   - Info box explaining location usage
+   - Real-time preference updates
+
+4. **locationService.ts** (New)
+   - Browser geolocation integration
+   - Haversine distance formula
+   - Privacy preference management
+   - Distance formatting utilities
+
+### Usage Examples
+
+**Getting Nearby Rooms (from RoomList):**
+```typescript
+const nearby = await getNearbyRooms(userLat, userLon, 10);
+// Returns: ChatRoom[] sorted by distance
+```
+
+**Displaying Distance:**
+```typescript
+import { formatDistance } from '../services/locationService';
+const distance = calculateDistance(lat1, lon1, lat2, lon2);
+console.log(formatDistance(distance)); // "2.4 km" or "450 m"
+```
+
+**Managing Privacy:**
+```typescript
+const prefs = await getUserLocationPreferences(userId);
+// Returns: { locationPrivacy, shareLocationForDiscovery, ... }
+
+await updateLocationPreferences(userId, {
+  locationPrivacy: 'public'
+});
+```
+
+### Browser Permissions
+
+The app requests:
+- **Geolocation**: For finding nearby rooms (user can deny)
+- **Storage**: PWA offline support (automatic)
+- **Notifications**: Future phase (not yet)
+
+Users can revoke location permission anytime (Settings → Privacy).
+
+
 
 ## 🔧 Available Scripts
 
@@ -205,13 +348,23 @@ See [SETUP_GUIDE.md](./SETUP_GUIDE.md) for comprehensive instructions on:
 ## 🌐 Firestore Schema
 
 ### Collections
-- **users**: User profiles and subscription status
-- **rooms**: Chat rooms with geolocation data
+- **users**: User profiles, subscription status, and location privacy preferences
+- **rooms**: Chat rooms with geolocation data and search radius
   - **typing** (subcollection): Active typing users
   - **presence** (subcollection): Online/offline user status
+  - **members** (subcollection): Room membership records
 - **messages**: Real-time chat messages with reactions
 - **subscriptions**: Stripe subscription information
 - **payments**: Payment transaction history
+
+### User Privacy Preferences
+```javascript
+{
+  locationPrivacy: 'nearby-only',      // private | nearby-only | public
+  shareLocationForDiscovery: true,      // Allow location for room discovery
+  locationVisibleToRoomMembers: false   // Show location to room members
+}
+```
 
 ### Message Document Structure
 ```javascript
@@ -230,6 +383,22 @@ See [SETUP_GUIDE.md](./SETUP_GUIDE.md) for comprehensive instructions on:
 }
 ```
 
+### Room Document Structure
+```javascript
+{
+  id: "room123",
+  name: "Downtown Coffee",
+  description: "Coffee chat meetup",
+  latitude: 40.7128,      // Room location
+  longitude: -74.0060,
+  radius: 10,             // Discovery radius in km
+  createdBy: "user789",
+  createdAt: Timestamp,
+  memberCount: 5,
+  lastMessage: Timestamp
+}
+```
+
 ### Typing & Presence Collections
 ```javascript
 // rooms/{roomId}/typing/{userId}
@@ -243,7 +412,7 @@ See [SETUP_GUIDE.md](./SETUP_GUIDE.md) for comprehensive instructions on:
 {
   userId: "user789",
   userName: "Steven Sanchez",
-  status: "online", // or "offline"
+  status: "online",        // or "offline"
   lastSeen: Timestamp
 }
 ```
