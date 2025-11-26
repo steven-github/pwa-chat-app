@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.ico'],
       manifest: {
         name: 'PWA Chat App',
         short_name: 'Chat',
@@ -19,44 +19,19 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect fill="%23667eea" width="192" height="192"/><text x="96" y="110" font-size="120" font-weight="bold" fill="white" text-anchor="middle" font-family="system-ui">💬</text></svg>',
             sizes: '192x192',
-            type: 'image/png',
+            type: 'image/svg+xml',
             purpose: 'any',
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect fill="%23667eea" width="512" height="512"/><text x="256" y="320" font-size="380" font-weight="bold" fill="white" text-anchor="middle" font-family="system-ui">💬</text></svg>',
             sizes: '512x512',
-            type: 'image/png',
+            type: 'image/svg+xml',
             purpose: 'any',
           },
-          {
-            src: 'pwa-maskable-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-          {
-            src: 'pwa-maskable-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
         ],
-        screenshots: [
-          {
-            src: 'screenshot-narrow.png',
-            sizes: '540x720',
-            type: 'image/png',
-            form_factor: 'narrow',
-          },
-          {
-            src: 'screenshot-wide.png',
-            sizes: '1280x720',
-            type: 'image/png',
-            form_factor: 'wide',
-          },
-        ],
+        screenshots: [],
         categories: ['productivity', 'social'],
       },
       workbox: {
