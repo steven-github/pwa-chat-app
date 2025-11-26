@@ -1,8 +1,8 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getStorage, connectStorageEmulator } from 'firebase/storage';
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -23,15 +23,17 @@ export const storage = getStorage(app);
 export const functions = getFunctions(app);
 
 // Emulator setup for development
-if (import.meta.env.DEV) {
-  try {
-    connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-    connectFirestoreEmulator(db, 'localhost', 8080);
-    connectStorageEmulator(storage, 'localhost', 9199);
-    connectFunctionsEmulator(functions, 'localhost', 5001);
-  } catch (error) {
-    // Emulator already connected
-  }
-}
+// Uncomment below to use Firebase Emulator Suite
+// Note: Google OAuth doesn't work with emulator, use email/password instead
+// if (import.meta.env.DEV) {
+//   try {
+//     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+//     connectFirestoreEmulator(db, 'localhost', 8080);
+//     connectStorageEmulator(storage, 'localhost', 9199);
+//     connectFunctionsEmulator(functions, 'localhost', 5001);
+//   } catch (error) {
+//     // Emulator already connected
+//   }
+// }
 
 export default app;

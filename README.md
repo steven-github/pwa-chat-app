@@ -4,14 +4,20 @@ A high-performance Progressive Web App (PWA) featuring real-time chat, geolocati
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Node.js 18+ with npm
-- Firebase account (free tier works)
-- Stripe account (test mode)
-- Modern web browser with PWA support
+### One-Click Setup (Recommended)
+```bash
+# Run the setup script
+./setup.sh
+```
 
-### Installation
+This automatically:
+- ✅ Checks Node.js installation
+- ✅ Creates `.env.local` from template
+- ✅ Installs dependencies
+- ✅ Builds the project
+- ✅ Guides you through next steps
 
+### Manual Setup
 ```bash
 # Navigate to project
 cd pwa-chat-app
@@ -28,6 +34,26 @@ npm run dev
 ```
 
 Visit `http://localhost:5173` and the app will auto-reload on changes.
+
+### Create Firestore Collections
+After logging in, choose one method:
+
+**Method 1: One-Click Button (Easiest)**
+- ✅ A "Initialize Collections" button will appear (bottom-right)
+- ✅ Click it to auto-create all 5 collections
+- ✅ Example documents auto-deleted after setup
+
+**Method 2: Browser Console**
+```javascript
+// 1. Log in to app
+// 2. Open DevTools (F12) → Console
+// 3. Paste:
+import { firebaseInit } from '/src/utils/firestoreSetup.js'
+import { db } from '/src/config/firebase.js'
+await firebaseInit(db)
+```
+
+See [FIRESTORE_SETUP.md](./FIRESTORE_SETUP.md) for complete instructions.
 
 ## 📋 Project Structure
 
