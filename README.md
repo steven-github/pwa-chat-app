@@ -118,14 +118,19 @@ pwa-chat-app/
 - [x] Responsive design with gradient UI
 - [x] Environment configuration system
 
-### Phase 2 🚀 In Progress
-- [ ] Real-time chat room functionality
-- [ ] Message broadcasting with Firestore listeners
-- [ ] User presence & typing indicators
-- [ ] Message reactions & attachments
-- [ ] Room creation & member management
+### Phase 2 ✅ Complete
+- [x] Real-time chat room functionality
+- [x] Message broadcasting with Firestore listeners
+- [x] User presence & typing indicators
+- [x] Message reactions & attachments
+- [x] Room creation & member management
+- [x] Typing indicators with auto-clear (5 second timeout)
+- [x] User online/offline status tracking
+- [x] Emoji message reactions (7 types)
+- [x] Responsive chat UI with auto-scroll
+- [x] Error handling and user feedback
 
-### Phase 3 📍 Planned
+### Phase 3 📍 In Progress
 - [ ] Geolocation API integration
 - [ ] Nearby rooms discovery algorithm
 - [ ] Location-based room filtering
@@ -202,9 +207,46 @@ See [SETUP_GUIDE.md](./SETUP_GUIDE.md) for comprehensive instructions on:
 ### Collections
 - **users**: User profiles and subscription status
 - **rooms**: Chat rooms with geolocation data
-- **messages**: Real-time chat messages
+  - **typing** (subcollection): Active typing users
+  - **presence** (subcollection): Online/offline user status
+- **messages**: Real-time chat messages with reactions
 - **subscriptions**: Stripe subscription information
 - **payments**: Payment transaction history
+
+### Message Document Structure
+```javascript
+{
+  id: "msg123",
+  roomId: "room456",
+  userId: "user789",
+  userName: "Steven Sanchez",
+  text: "Hello world!",
+  timestamp: Timestamp,
+  reactions: {
+    "👍": ["user1", "user2"],
+    "❤️": ["user3"],
+    "😂": ["user1", "user3"]
+  }
+}
+```
+
+### Typing & Presence Collections
+```javascript
+// rooms/{roomId}/typing/{userId}
+{
+  userId: "user789",
+  userName: "Steven Sanchez",
+  timestamp: Timestamp
+}
+
+// rooms/{roomId}/presence/{userId}
+{
+  userId: "user789",
+  userName: "Steven Sanchez",
+  status: "online", // or "offline"
+  lastSeen: Timestamp
+}
+```
 
 See [SETUP_GUIDE.md](./SETUP_GUIDE.md#step-2-firestore-database-schema) for complete schema details.
 
