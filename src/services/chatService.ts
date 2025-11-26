@@ -11,6 +11,8 @@ import {
   onSnapshot,
   Timestamp,
   getDoc,
+  deleteDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { ChatRoom, ChatMessage } from '../store/chatStore';
@@ -235,3 +237,143 @@ function calculateDistance(
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
+
+// ====== TYPING INDICATORS ======
+export const setUserTyping = async (roomId: string, userId: string, userName: string, isTyping: boolean) => {
+  try {
+    const typingRef = doc(db, 'rooms', roomId, 'typing', userId);
+    if (isTyping) {
+      await setDoc(typingRef, {
+        userId,
+        userName,
+        timestamp: Timestamp.now(),
+      });
+    } else {
+      // Delete typing indicator when done
+      await deleteDoc(typingRef).catch(() => {}); // Ignore if already deleted
+    }
+  } catch (error) {
+    console.error('Error updating typing status:', error);
+  }
+};
+
+export const subscribeToTypingUsers = (
+  roomId: string,
+  onTypingUpdate: (users: Array<{ userId: string; userName: string }>) => void
+) => {
+  try {
+    const typingRef = collection(db, 'rooms', roomId, 'typing');
+    
+    const unsubscribe = onSnapshot(typingRef, (snapshot) => {
+      const typingUsers: Array<{ userId: string; userName: string }> = [];
+      const now = Date.now();
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const createdTime = data.timestamp?.toDate?.().getTime() || 0;
+        // Only show typing if less than 5 seconds old
+        if (now - createdTime < 5000) {
+          typingUsers.push({
+            userId: data.userId,
+            userName: data.userName,
+          });
+        }
+      });
+      
+      onTypingUpdate(typingUsers);
+    });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error subscribing to typing:', error);
+    return () => {};
+  }
+};
+
+// ====== USER PRESENCE ======
+export const setUserPresence = async (roomId: string, userId: string, userName: string, status: 'online' | 'offline') => {
+  try {
+    const presenceRef = doc(db, 'rooms', roomId, 'presence', userId);
+    
+    if (status === 'online') {
+      await setDoc(presenceRef, {
+        userId,
+        userName,
+        status: 'online',
+        lastSeen: Timestamp.now(),
+      });
+    } else {
+      await setDoc(presenceRef, {
+        userId,
+        userName,
+        status: 'offline',
+        lastSeen: Timestamp.now(),
+      }, { merge: true });
+    }
+  } catch (error) {
+    console.error('Error updating presence:', error);
+  }
+};
+
+export const subscribeToUserPresence = (
+  roomId: string,
+  onPresenceUpdate: (users: Array<{ userId: string; userName: string; status: 'online' | 'offline' }>) => void
+) => {
+  try {
+    const presenceRef = collection(db, 'rooms', roomId, 'presence');
+    
+    const unsubscribe = onSnapshot(presenceRef, (snapshot) => {
+      const users: Array<{ userId: string; userName: string; status: 'online' | 'offline' }> = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        users.push({
+          userId: data.userId,
+          userName: data.userName,
+          status: data.status,
+        });
+      });
+      
+      onPresenceUpdate(users);
+    });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error subscribing to presence:', error);
+    return () => {};
+  }
+};
+
+// ====== MESSAGE REACTIONS ======
+export const addReaction = async (messageId: string, emoji: string, userId: string) => {
+  try {
+    const messageRef = doc(db, 'messages', messageId);
+    const messageDoc = await getDoc(messageRef);
+    
+    if (!messageDoc.exists()) {
+      throw new Error('Message not found');
+    }
+
+    const currentReactions = messageDoc.data().reactions || {};
+    const userIds = currentReactions[emoji] || [];
+    const hasReacted = userIds.includes(userId);
+
+    // Toggle reaction
+    const updatedReactions = {
+      ...currentReactions,
+      [emoji]: hasReacted ? userIds.filter((id: string) => id !== userId) : [...userIds, userId],
+    };
+
+    // Remove empty reactions
+    Object.keys(updatedReactions).forEach((key) => {
+      if (updatedReactions[key].length === 0) {
+        delete updatedReactions[key];
+      }
+    });
+
+    await updateDoc(messageRef, { reactions: updatedReactions });
+  } catch (error) {
+    console.error('Error adding reaction:', error);
+    throw error;
+  }
+};

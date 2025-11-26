@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
-import { sendMessage, subscribeToRoomMessages } from '../services/chatService';
+import { 
+  sendMessage, 
+  subscribeToRoomMessages,
+  setUserTyping,
+  subscribeToTypingUsers,
+  setUserPresence,
+  subscribeToUserPresence,
+} from '../services/chatService';
 import { MessageList } from './MessageList';
+import { TypingIndicator } from './TypingIndicator';
 import '../styles/chat.css';
 
 interface ChatRoomProps {
@@ -15,7 +23,10 @@ export function ChatRoom({ roomId, roomName }: ChatRoomProps) {
   const { messages } = useChatStore();
   const [messageText, setMessageText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; userName: string }>>([]);
+  const [presenceUsers, setPresenceUsers] = useState<Array<{ userId: string; userName: string; status: 'online' | 'offline' }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Subscribe to real-time messages for this room
   useEffect(() => {
@@ -28,10 +39,58 @@ export function ChatRoom({ roomId, roomName }: ChatRoomProps) {
     return () => unsubscribe();
   }, [roomId]);
 
+  // Subscribe to typing users
+  useEffect(() => {
+    if (!roomId) return;
+
+    const unsubscribe = subscribeToTypingUsers(roomId, (users) => {
+      setTypingUsers(users);
+    });
+
+    return () => unsubscribe();
+  }, [roomId]);
+
+  // Subscribe to user presence
+  useEffect(() => {
+    if (!roomId || !user) return;
+
+    // Set current user as online
+    setUserPresence(roomId, user.uid, user.displayName || user.email || 'Anonymous', 'online');
+
+    const unsubscribe = subscribeToUserPresence(roomId, (users) => {
+      setPresenceUsers(users);
+    });
+
+    // Cleanup: set user as offline when leaving
+    return () => {
+      unsubscribe();
+      setUserPresence(roomId, user.uid, user.displayName || user.email || 'Anonymous', 'offline');
+    };
+  }, [roomId, user]);
+
   // Auto-scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessageText(e.target.value);
+
+    // Update typing status
+    if (user && roomId) {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      // Set typing to true
+      setUserTyping(roomId, user.uid, user.displayName || user.email || 'Anonymous', true);
+
+      // Clear typing status after 2 seconds of inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        setUserTyping(roomId, user.uid, user.displayName || user.email || 'Anonymous', false);
+      }, 2000);
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +105,11 @@ export function ChatRoom({ roomId, roomName }: ChatRoomProps) {
         userId: user.uid,
         userName: user.displayName || user.email || 'Anonymous',
       });
+
+      // Clear typing status
+      if (roomId && user) {
+        setUserTyping(roomId, user.uid, user.displayName || user.email || 'Anonymous', false);
+      }
 
       setMessageText('');
     } catch (err) {
@@ -64,7 +128,9 @@ export function ChatRoom({ roomId, roomName }: ChatRoomProps) {
           <p className="room-id">#{roomId.substring(0, 8)}</p>
         </div>
         <div className="member-count">
-          {messages.length > 0 && <span>{new Set(messages.map(m => m.userId)).size} online</span>}
+          {presenceUsers.length > 0 && (
+            <span>🟢 {presenceUsers.filter((u) => u.status === 'online').length}/{presenceUsers.length} online</span>
+          )}
         </div>
       </div>
 
@@ -82,6 +148,9 @@ export function ChatRoom({ roomId, roomName }: ChatRoomProps) {
         )}
       </div>
 
+      {/* Typing Indicator */}
+      {typingUsers.length > 0 && <TypingIndicator typingUsers={typingUsers} />}
+
       {/* Error message */}
       {error && (
         <div className="error-message">
@@ -95,7 +164,7 @@ export function ChatRoom({ roomId, roomName }: ChatRoomProps) {
         <input
           type="text"
           value={messageText}
-          onChange={(e) => setMessageText(e.target.value)}
+          onChange={handleMessageChange}
           placeholder="Type a message..."
           disabled={!user}
           className="message-input"

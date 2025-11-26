@@ -1,4 +1,5 @@
 import type { ChatMessage } from '../store/chatStore';
+import { MessageReactions } from './MessageReactions';
 import '../styles/chat.css';
 
 interface MessageListProps {
@@ -28,6 +29,17 @@ export function MessageList({ messages, currentUserId }: MessageListProps) {
               </span>
             </div>
             <p className="message-text">{message.text}</p>
+            
+            {/* Message reactions */}
+            {Object.keys(message.reactions || {}).length > 0 && (
+              <div className="message-reactions-display">
+                <MessageReactions 
+                  messageId={message.id}
+                  reactions={message.reactions}
+                  currentUserId={currentUserId}
+                />
+              </div>
+            )}
           </div>
         </div>
       ))}
