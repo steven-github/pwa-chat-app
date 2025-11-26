@@ -31,6 +31,35 @@ export const createChatRoom = async (
   }
 };
 
+export const getChatRooms = async (): Promise<ChatRoom[]> => {
+  try {
+    const roomsRef = collection(db, 'rooms');
+    const q = query(roomsRef, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+
+    const rooms: ChatRoom[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      rooms.push({
+        id: docSnap.id,
+        name: data.name,
+        description: data.description,
+        createdBy: data.createdBy,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        memberCount: data.memberCount || 0,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        radius: data.radius,
+      });
+    });
+
+    return rooms;
+  } catch (error) {
+    console.error('Error fetching rooms:', error);
+    throw error;
+  }
+};
+
 export const getNearbyRooms = async (
   latitude: number,
   longitude: number,
@@ -81,23 +110,26 @@ export const subscribeToRoomMessages = (
   const q = query(
     messagesRef,
     where('roomId', '==', roomId),
-    orderBy('timestamp', 'asc'),
     limit(100)
   );
 
   const unsubscribe = onSnapshot(q, (snapshot) => {
     const messages: ChatMessage[] = [];
     snapshot.forEach((doc) => {
+      const data = doc.data();
       messages.push({
         id: doc.id,
-        roomId: doc.data().roomId,
-        userId: doc.data().userId,
-        userName: doc.data().userName,
-        text: doc.data().text,
-        timestamp: doc.data().timestamp?.toDate() || new Date(),
-        attachments: doc.data().attachments,
+        roomId: data.roomId,
+        userId: data.userId,
+        userName: data.userName,
+        text: data.text,
+        timestamp: data.timestamp?.toDate() || new Date(),
+        attachments: data.attachments,
       });
     });
+    
+    // Sort by timestamp client-side to avoid composite index requirement
+    messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
     onMessagesUpdate(messages);
   });
 
@@ -106,16 +138,18 @@ export const subscribeToRoomMessages = (
 
 export const sendMessage = async (
   roomId: string,
-  userId: string,
-  userName: string,
-  text: string
+  messageData: {
+    text: string;
+    userId: string;
+    userName: string;
+  }
 ) => {
   try {
     const message = {
       roomId,
-      userId,
-      userName,
-      text,
+      userId: messageData.userId,
+      userName: messageData.userName,
+      text: messageData.text,
       timestamp: Timestamp.now(),
     };
 

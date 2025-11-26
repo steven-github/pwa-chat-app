@@ -26,7 +26,6 @@ export interface UserProfile {
 export const initAuthListener = () => {
   return onAuthStateChanged(auth, async (user) => {
     const { setUser, setLoading } = useAuthStore.getState();
-    setLoading(true);
 
     if (user) {
       try {
@@ -36,6 +35,7 @@ export const initAuthListener = () => {
 
         if (userDoc.exists()) {
           setUser(user);
+          setLoading(false);
           return;
         }
       } catch (error: unknown) {
